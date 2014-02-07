@@ -1,7 +1,7 @@
 from pybrain.supervised.trainers import BackpropTrainer
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.datasets import SupervisedDataSet
-from pybrain.structure.modules import SigmoidLayer
+from pybrain.structure.modules import TanhLayer
 from pybrain.tools.customxml import networkwriter
 import mapper
 import Tkinter
@@ -78,15 +78,9 @@ def main_loop():
                 print (tuple(data_input.values()))
                 print ("Outputs: ")
                 print (tuple( data_output.values()))
-                ds.addSample(tuple(data_input.values()),tuple(data_output.values()))		
-	if (l_map.poll(1)) and ((compute==1) and (learning==0)):
-			#print "inputs to net: ", data_input
-			activated_out=net.activate(tuple(data_input.values()))
-			#print "Activated outs: ", activated_out
-			for out_index in range(num_outputs):
-				data_output[out_index]=activated_out[out_index]
-				sliders[out_index].set(activated_out[out_index])
-				l_outputs[out_index].update(data_output[out_index])
+                ds.addSample(tuple(data_input.values()),tuple(data_output.values()))
+	l_map.poll(100)
+
 
 
 def on_gui_change(x,s_index):
@@ -100,7 +94,7 @@ def on_gui_change(x,s_index):
 			data_output[s_index]=float(x)
 			l_outputs[s_index].update(float(x))
 			#print ("on gui change: ", data_output)
-			#l_map.poll(0)
+			l_map.poll(0)
 
 	except:
 		print ("WTF MATE? On Gui Change Error!")
@@ -146,7 +140,7 @@ def compute_callback():
 		print ("Compute network output is now ON!")
 
 def train_callback():
-        trainer = BackpropTrainer(net, learningrate=0.01, lrdecay=1, momentum=0.0, verbose=True)
+        trainer = BackpropTrainer(net, learningrate=0.001, lrdecay=1, momentum=0.0, verbose=True)
 	print 'MSE before', trainer.testOnData(ds, verbose=True)
 	epoch_count = 0
 	while epoch_count < 1000:
@@ -224,7 +218,7 @@ def ontimer():
 
 
 #mapper signal handler (updates data_input[sig_indx]=new_float_value)
-def h(sig, f):
+def h(sig, id, f, timetag):
 	try:
 		#print "mapper signal handler"
 		#print (sig.name, f)
@@ -246,7 +240,14 @@ def h(sig, f):
 				data_output[int(s_indx[1])]=float(f)
 				#print(int(s_indx[1]),data_output[int(s_indx[1])])
 
-		
+		if ((compute==1) and (learning==0)):
+			#print "inputs to net: ", data_input
+			activated_out=net.activate(tuple(data_input.values()))
+			#print "Activated outs: ", activated_out
+			for out_index in range(num_outputs):
+				data_output[out_index]=activated_out[out_index]
+				sliders[out_index].set(activated_out[out_index])
+				l_outputs[out_index].update(data_output[out_index])
 		
 	except:
 		print "WTF, h handler not working"
@@ -254,18 +255,18 @@ def h(sig, f):
 #create mapper signals (inputs)
 for l_num in range(num_inputs):
 	l_inputs[l_num]=l_map.add_input("/in%d"%l_num, 1, 'f',None,0,1.0, h)
-	#l_map.poll(0)
+	l_map.poll(0)
 	print ("creating input", "/in"+str(l_num))
 	
 #create mapper signals (outputs)
 for l_num in range(num_outputs):
 	l_outputs[l_num]=l_map.add_output("/out"+str(l_num), 1, 'f',None,0.0,1.0)
-	l_inputs[l_num + num_inputs]=l_map.add_input("/out%d"%l_num, 1, 'f',None,0,1.0, h)
-	#l_map.poll(0)
+	l_inputs[l_num + num_inputs]=l_map.add_input("/out%d"%l_num, 1, 'f',None,0.0,1.0)
+	l_map.poll(0)
 	print ("creating output","/out"+str(l_num))
 
 #create network
-net = buildNetwork(num_inputs,num_hidden,num_outputs,bias=True, hiddenclass=SigmoidLayer, outclass=SigmoidLayer, recurrent=recurrent_flag)
+net = buildNetwork(num_inputs,num_hidden,num_outputs,bias=True, hiddenclass=TanhLayer, outclass=TanhLayer, recurrent=recurrent_flag)
 #create dataSet
 ds = SupervisedDataSet(num_inputs, num_outputs)
 	
